@@ -1,0 +1,2405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Attendance Dashboard</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      
+      --color-present: #10b981;
+      --color-present-hover: #059669;
+      --color-present-bg: rgba(16, 185, 129, 0.15);
+      
+      --color-absent: #ef4444;
+      --color-absent-hover: #dc2626;
+      --color-absent-bg: rgba(239, 68, 68, 0.15);
+      
+      --color-late: #f59e0b;
+      --color-late-hover: #d97706;
+      --color-late-bg: rgba(245, 158, 11, 0.15);
+      
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-bg: rgba(99, 102, 241, 0.15);
+      
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    /* Ambient background glows */
+    .glow {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%);
+      top: 10%;
+      left: 10%;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .glow-right {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, rgba(0,0,0,0) 70%);
+      bottom: 10%;
+      right: 5%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Glassmorphism Header */
+    header {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 1.25rem;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: var(--shadow-lg);
+    }
+
+    @media (min-width: 768px) {
+      header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+
+    .header-title h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #f8fafc, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.25rem;
+    }
+
+    .header-title p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      font-weight: 400;
+    }
+
+    .header-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    /* Control Inputs */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .control-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    select, input[type="date"], input[type="text"] {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--panel-border);
+      border-radius: 0.75rem;
+      padding: 0.65rem 1rem;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    select:focus, input[type="date"]:focus, input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      padding-right: 2.5rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1.25rem;
+    }
+
+    /* Layout Split */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 992px) {
+      .dashboard-grid {
+        grid-template-columns: 320px 1fr;
+      }
+    }
+
+    /* Sidebar Analytics */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Stats Card Widget */
+    .stats-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      margin-bottom: 1rem;
+    }
+
+    .stats-value {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stats-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, var(--accent), var(--color-present));
+      width: 0%;
+      transition: width 0.5s ease-out;
+    }
+
+    /* Stat breakdown lists */
+    .stat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .stat-item:last-child {
+      border-bottom: none;
+    }
+
+    .stat-item-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .stat-badge {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .stat-badge.present { background: var(--color-present); }
+    .stat-badge.absent { background: var(--color-absent); }
+    .stat-badge.late { background: var(--color-late); }
+
+    .stat-item-value {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    /* Alerts and Watchlist */
+    .alert-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    .alert-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+      border-radius: 0.75rem;
+    }
+
+    .alert-card-info h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .alert-card-info p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .alert-value {
+      color: var(--color-absent);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .empty-watchlist {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      padding: 1.5rem 0;
+    }
+
+    /* Attendance List Area */
+    .main-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .search-wrapper {
+      flex: 1;
+      min-width: 250px;
+      position: relative;
+    }
+
+    .search-wrapper input {
+      width: 100%;
+      padding-left: 2.5rem;
+    }
+
+    .search-wrapper svg {
+      position: absolute;
+      left: 0.85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1.1rem;
+      height: 1.1rem;
+      stroke: var(--text-secondary);
+      pointer-events: none;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Buttons */
+    button {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.65rem 1.1rem;
+      border-radius: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: var(--transition);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border: 1px solid var(--panel-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 10px rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-primary:disabled {
+      background: rgba(99, 102, 241, 0.4);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Student List Grid */
+    .student-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+      max-height: 600px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    @media (min-width: 768px) {
+      .student-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .student-card {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: var(--transition);
+    }
+
+    .student-card:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    @media (min-width: 576px) {
+      .student-card {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+
+    .student-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .student-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent) 0%, #4338ca 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .student-details h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.15rem;
+    }
+
+    .student-details p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .student-details .email {
+      opacity: 0.7;
+    }
+
+    /* Triple Toggle Status */
+    .status-toggle {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.35rem;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 0.25rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--panel-border);
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .status-btn {
+      border: none;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+      background: transparent;
+      transition: var(--transition);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .status-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Active toggle styles */
+    .status-btn.present.active {
+      background: var(--color-present);
+      color: white;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+    }
+
+    .status-btn.absent.active {
+      background: var(--color-absent);
+      color: white;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    }
+
+    .status-btn.late.active {
+      background: var(--color-late);
+      color: white;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+    }
+
+    /* Warning Highlighting & Badges */
+    .student-card.warning-highlight {
+      background: rgba(239, 68, 68, 0.04) !important;
+      border: 1px solid rgba(239, 68, 68, 0.25) !important;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.06);
+    }
+    
+    .student-card.warning-highlight:hover {
+      background: rgba(239, 68, 68, 0.07) !important;
+      border-color: rgba(239, 68, 68, 0.4) !important;
+    }
+
+    .rate-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.5rem;
+      font-size: 0.725rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    
+    .rate-badge.good {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.10);
+    }
+    
+    .rate-badge.warning {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.10);
+    }
+    
+    .rate-badge.danger {
+      background: rgba(239, 68, 68, 0.12);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.10);
+    }
+
+    .consecutive-badge {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.5rem;
+      font-size: 0.725rem;
+      font-weight: 700;
+      border: 1px solid rgba(239, 68, 68, 0.20);
+    }
+
+    .btn-warn {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 0.45rem 0.85rem;
+      font-size: 0.775rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: var(--transition);
+    }
+
+    .btn-warn:hover:not(:disabled) {
+      background: var(--color-absent);
+      color: white;
+      border-color: var(--color-absent);
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-warn:disabled {
+      background: rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.05);
+      cursor: not-allowed;
+    }
+
+    /* Floating Sync Save panel */
+    .save-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--panel-border);
+    }
+
+    .save-status-msg {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .save-status-msg.success {
+      color: var(--color-present);
+    }
+
+    .save-status-msg.error {
+      color: var(--color-absent);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 1.1rem;
+      height: 1.1rem;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Loading Overlay */
+    .loader-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(2, 6, 17, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    .loader-card {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .big-spinner {
+      width: 3.5rem;
+      height: 3.5rem;
+      border: 4px solid rgba(99, 102, 241, 0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+    }
+
+    .loader-card h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .loader-card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .hidden {
+      display: none !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Alert / Error Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+
+    .modal {
+      background: #1e293b;
+      border: 1px solid var(--color-absent);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      max-width: 480px;
+      width: 90%;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal h2 {
+      color: var(--color-absent);
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .modal p {
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    /* Scrollbars styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="glow"></div>
+  <div class="glow-right"></div>
+
+  <!-- Loading State Screen -->
+  <div id="loader" class="loader-overlay">
+    <div class="loader-card">
+      <div class="big-spinner"></div>
+      <div>
+        <h2 id="loader-title">Connecting to Sheet</h2>
+        <p id="loader-subtitle">Retrieving active class data...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Modal Screen -->
+  <div id="error-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="error-title">Database Error</h2>
+      <p id="error-message">Unable to read the student roster. Please verify you have valid student names in Columns A and B.</p>
+      <button class="btn-primary" onclick="closeErrorModal()" style="margin: 0 auto;">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Email Warning Modal Screen -->
+  <div id="email-modal" class="modal-overlay hidden">
+    <div class="modal" style="border-color: var(--accent); text-align: left; max-width: 500px;">
+      <h2 style="color: var(--text-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <svg style="width: 1.5rem; height: 1.5rem; fill: none; stroke: var(--accent);" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        Send Attendance Warning
+      </h2>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        Review the warning email settings before dispatching the alert.
+      </p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="control-group">
+          <span class="control-label">Student Name</span>
+          <input type="text" id="email-student-name" readonly style="background: rgba(15, 23, 42, 0.4); color: var(--text-secondary); cursor: not-allowed;">
+        </div>
+        
+        <div class="control-group">
+          <span class="control-label">Student Email</span>
+          <input type="text" id="email-student-addr" readonly style="background: rgba(15, 23, 42, 0.4); color: var(--text-secondary); cursor: not-allowed;">
+        </div>
+        
+        <div class="control-group">
+          <span class="control-label">Parent / Guardian Email</span>
+          <input type="text" id="email-parent-addr" placeholder="Enter parent email address...">
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+          <input type="checkbox" id="email-cc-parent" style="width: 1.1rem; height: 1.1rem; accent-color: var(--accent); cursor: pointer;">
+          <label for="email-cc-parent" style="font-size: 0.9rem; color: var(--text-primary); cursor: pointer; user-select: none;">
+            CC Parent / Guardian
+          </label>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+        <button class="btn-secondary" onclick="closeEmailModal()">Cancel</button>
+        <button class="btn-primary" id="email-modal-send-btn" onclick="submitEmailWarning()">Send Email</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Profile Modal Screen -->
+  <div id="profile-modal" class="modal-overlay hidden">
+    <div class="modal" style="border-color: var(--accent); text-align: left; max-width: 600px; width: 90%;">
+      <h2 id="profile-modal-title" style="color: var(--text-primary); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+        Student Profile
+      </h2>
+      <p id="profile-modal-roll" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; font-weight: 500;"></p>
+      
+      <!-- Stats Summary cards inside modal -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--panel-border); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div id="profile-stat-rate" style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">0%</div>
+          <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; margin-top: 0.25rem;">Rate</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--panel-border); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div id="profile-stat-absences" style="font-size: 1.5rem; font-weight: 700; color: var(--color-absent);">0</div>
+          <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; margin-top: 0.25rem;">Absences</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--panel-border); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+          <div id="profile-stat-warnings" style="font-size: 1.5rem; font-weight: 700; color: var(--color-late);">0</div>
+          <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; margin-top: 0.25rem;">Warnings</div>
+        </div>
+      </div>
+      
+      <!-- Info Fields -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.4rem; display: flex; flex-direction: column;">
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">PRN</span>
+          <span id="profile-info-prn" style="font-size: 0.85rem; font-weight: 500;">-</span>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.4rem; display: flex; flex-direction: column;">
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">Student Phone</span>
+          <span id="profile-info-phone" style="font-size: 0.85rem; font-weight: 500;">-</span>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.4rem; display: flex; flex-direction: column;">
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">Student Email</span>
+          <span id="profile-info-email" style="font-size: 0.85rem; font-weight: 500;">-</span>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.4rem; display: flex; flex-direction: column;">
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">Parent Phone</span>
+          <span id="profile-info-parent-phone" style="font-size: 0.85rem; font-weight: 500;">-</span>
+        </div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.4rem; display: flex; flex-direction: column; grid-column: span 2;">
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">Parent Email</span>
+          <span id="profile-info-parent" style="font-size: 0.85rem; font-weight: 500;">-</span>
+        </div>
+      </div>
+
+      <!-- History log -->
+      <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Session History</h3>
+      <div id="profile-history-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; border: 1px solid var(--panel-border); padding: 0.5rem; border-radius: 0.75rem; background: rgba(15, 23, 42, 0.2);">
+        <!-- Filled dynamically -->
+      </div>
+      
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+        <button class="btn-secondary" onclick="closeStudentProfile()">Close</button>
+        <button class="btn-primary" id="profile-modal-warn-btn" onclick="triggerWarningFromProfile()">
+          <svg style="width: 1rem; height: 1rem; fill: none; stroke: currentColor;" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          Email Warning
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="header-title">
+        <h1 id="app-title">Attendance Manager</h1>
+        <p id="app-subtitle">Select a subject tab to get started</p>
+      </div>
+      <div class="header-controls">
+        <div class="control-group">
+          <span class="control-label">Class / Subject</span>
+          <select id="sheet-selector" onchange="onSheetChange()">
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+        <div class="control-group">
+          <span class="control-label">Session Date</span>
+          <input type="date" id="date-picker" onchange="onDateChange()">
+        </div>
+        <div class="control-group">
+          <span class="control-label">Session Time</span>
+          <input type="text" id="time-picker" placeholder="e.g. 10:30 AM" onchange="onTimeChange()" style="width: 140px;">
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <div class="dashboard-grid">
+      <!-- Left Column: Analytics & Summaries -->
+      <div class="sidebar">
+        <!-- Analytics & Statistics Tabbed Panel -->
+        <div class="panel" style="padding: 1.25rem;">
+          <!-- Tab Headers -->
+          <div style="display: flex; gap: 0.35rem; background: rgba(15, 23, 42, 0.5); padding: 0.25rem; border-radius: 0.75rem; border: 1px solid var(--panel-border); margin-bottom: 1.25rem;">
+            <button class="status-btn active" id="analytics-tab-class" onclick="switchAnalyticsTab('class')" style="flex: 1; padding: 0.45rem 0.25rem; font-size: 0.8rem;">Class</button>
+            <button class="status-btn" id="analytics-tab-subjects" onclick="switchAnalyticsTab('subjects')" style="flex: 1; padding: 0.45rem 0.25rem; font-size: 0.8rem;">Subjects</button>
+            <button class="status-btn" id="analytics-tab-honor" onclick="switchAnalyticsTab('honor')" style="flex: 1; padding: 0.45rem 0.25rem; font-size: 0.8rem;">Honor Roll</button>
+          </div>
+
+          <!-- Class Tab View -->
+          <div id="view-class-analytics">
+            <div class="stats-card" style="margin-bottom: 1.25rem; padding: 1.25rem 1rem;">
+              <div class="stats-value" id="session-percent" style="font-size: 2.5rem;">0%</div>
+              <div class="stats-label">Present Rate</div>
+              <div class="progress-bar-container">
+                <div id="session-progress" class="progress-bar"></div>
+              </div>
+            </div>
+            
+            <div style="position: relative; height: 160px; margin-bottom: 1rem; width: 100%;">
+              <canvas id="trend-chart"></canvas>
+            </div>
+
+            <div style="position: relative; height: 160px; margin-bottom: 1rem; width: 100%;">
+              <canvas id="weekday-chart"></canvas>
+            </div>
+
+            <div class="stat-list" style="display: none;"> <!-- Keep hidden, but update values so script doesn't break -->
+              <span id="count-present">0</span>
+              <span id="count-absent">0</span>
+              <span id="count-late">0</span>
+              <span id="count-total">0</span>
+            </div>
+          </div>
+
+          <!-- Subjects Tab View -->
+          <div id="view-subjects-analytics" class="hidden">
+            <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Tab Comparison</h3>
+            <div style="position: relative; height: 320px; width: 100%;">
+              <canvas id="subjects-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Honor Roll Tab View -->
+          <div id="view-honor-analytics" class="hidden">
+            <h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text-primary);">Honor Roll</h3>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">Students with 90% or higher attendance</p>
+            <div id="honor-roll-list" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 320px; overflow-y: auto; padding-right: 0.25rem;">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Attendance Watchlist Panel -->
+        <div class="panel">
+          <h2 class="panel-title" style="color: var(--color-absent);">
+            <svg style="width: 1.25rem; height: 1.25rem; stroke: var(--color-absent); fill: none;" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Low Attendance Warning
+          </h2>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: -0.75rem; margin-bottom: 1rem;">Students below 75% historical rate</p>
+          <div class="alert-list" id="watchlist">
+            <div class="empty-watchlist">No records found. Complete first session to compile.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Student Grid and Controls -->
+      <div class="main-panel panel">
+        <div class="panel-actions">
+          <div class="search-wrapper">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text" id="search-input" placeholder="Search by roll number or student name..." oninput="filterStudents()">
+          </div>
+          <div class="btn-group">
+            <button class="btn-secondary" onclick="markAll('P')">All Present</button>
+            <button class="btn-secondary" onclick="markAll('A')">All Absent</button>
+          </div>
+        </div>
+
+        <!-- Scrollable Student List -->
+        <div class="student-grid" id="student-list-container">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Footer Actions / Sync Bar -->
+        <div class="save-bar" style="flex-wrap: wrap; gap: 1rem;">
+          <div class="save-status-msg" id="sync-status">
+            <svg style="width: 1.1rem; height: 1.1rem; stroke: currentColor; fill: none;" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>All local changes synced.</span>
+          </div>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn-secondary" id="export-btn" onclick="triggerCsvExport()">
+              <svg style="width: 1.1rem; height: 1.1rem; stroke: currentColor; fill: none;" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Export CSV</span>
+            </button>
+            <button class="btn-primary" id="save-btn" onclick="saveData()">
+              <svg id="save-icon" style="width: 1.1rem; height: 1.1rem; stroke: currentColor; fill: none;" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              <span id="save-btn-text">Submit Attendance</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock environment for local preview testing (when loaded outside Google Apps Script frame)
+    if (typeof google === 'undefined' || !google.script) {
+      console.warn('Google Apps Script environment not detected. Running in mock/preview mode.');
+      window.google = {
+        script: {
+          run: {
+            withSuccessHandler: function(successHandler) {
+              const runContext = {...this};
+              runContext.successHandler = successHandler;
+              return runContext;
+            },
+            withFailureHandler: function(failureHandler) {
+              const runContext = {...this};
+              runContext.failureHandler = failureHandler;
+              return runContext;
+            },
+            getSheetsList: function() {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  this.successHandler(['DS-1 Panel H', 'Chemistry Panel B']);
+                }
+              }, 1000);
+            },
+            getTimetable: function() {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  this.successHandler([
+                    { day: 'Monday', startTime: '10:30 AM', endTime: '11:30 AM', classRef: 'DS-1 Panel H', classroom: 'Room 402' },
+                    { day: 'Wednesday', startTime: '01:30 PM', endTime: '02:30 PM', classRef: 'DS-1 Panel H', classroom: 'Room 402' },
+                    { day: 'Friday', startTime: '09:00 AM', endTime: '10:00 AM', classRef: 'Chemistry Panel B', classroom: 'Lecture Hall 1' }
+                  ]);
+                }
+              }, 600);
+            },
+            getStudents: function(sheetName) {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  this.successHandler({
+                    sheetName: sheetName || 'DS-1 Panel H',
+                    dates: ['2026-07-01 10:30 AM', '2026-07-02 10:30 AM', '2026-07-03 10:30 AM'],
+                    students: [
+                      { rollNumber: 'P101', prn: 'PRN101', name: 'Alexander Wright', email: 'alex@school.edu', phone: '+123456781', parentEmail: 'parent.alex@school.edu', parentPhone: '+198765431', rowNum: 2, attendance: { '2026-07-01 10:30 AM': 'P', '2026-07-02 10:30 AM': 'P', '2026-07-03 10:30 AM': 'P' } },
+                      { rollNumber: 'P102', prn: 'PRN102', name: 'Sophia Loren', email: 'sophia@school.edu', phone: '+123456782', parentEmail: '', parentPhone: '', rowNum: 3, attendance: { '2026-07-01 10:30 AM': 'P', '2026-07-02 10:30 AM': 'A', '2026-07-03 10:30 AM': 'P' } },
+                      { rollNumber: 'P103', prn: 'PRN103', name: 'Marcus Aurelius', email: 'marcus@school.edu', phone: '+123456783', parentEmail: 'parent.marcus@school.edu', parentPhone: '+198765433', rowNum: 4, attendance: { '2026-07-01 10:30 AM': 'A', '2026-07-02 10:30 AM': 'A', '2026-07-03 10:30 AM': 'A' } },
+                      { rollNumber: 'P104', prn: 'PRN104', name: 'Diana Prince', email: 'diana@school.edu', phone: '+123456784', parentEmail: 'parent.diana@school.edu', parentPhone: '+198765434', rowNum: 5, attendance: { '2026-07-01 10:30 AM': 'P', '2026-07-02 10:30 AM': 'L', '2026-07-03 10:30 AM': 'P' } },
+                      { rollNumber: 'P105', prn: 'PRN105', name: 'Bruce Wayne', email: 'bruce@school.edu', phone: '+123456785', parentEmail: '', parentPhone: '', rowNum: 6, attendance: { '2026-07-01 10:30 AM': 'P', '2026-07-02 10:30 AM': 'P', '2026-07-03 10:30 AM': 'A' } }
+                    ]
+                  });
+                }
+              }, 1000);
+            },
+            saveAttendance: function(sheetName, dateString, attendanceMap) {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  console.log(`[Mock Save] Saved to "${sheetName}" for date "${dateString}":`, attendanceMap);
+                  this.successHandler({ success: true, date: dateString });
+                }
+              }, 1200);
+            },
+            sendWarningEmail: function(studentName, studentEmail, attendanceRate, sheetName, consecutiveAbsences, parentEmail, ccParent, rowNum) {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  console.log(`[Mock Email] Warning email sent to ${studentName} (${studentEmail}) with rate ${attendanceRate}% in "${sheetName}". Consecutive absences: ${consecutiveAbsences}. Parent: ${parentEmail} (CC: ${ccParent})`);
+                  this.successHandler({ success: true, email: studentEmail, cc: ccParent ? parentEmail : '' });
+                }
+              }, 1200);
+            },
+            getClassSummaries: function() {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  this.successHandler([
+                    { className: 'DS-1 Panel H', studentCount: 5, averageAttendance: 84 },
+                    { className: 'Chemistry Panel B', studentCount: 12, averageAttendance: 76 }
+                  ]);
+                }
+              }, 800);
+            },
+            exportClassReportCsv: function(sheetName) {
+              setTimeout(() => {
+                if (this.successHandler) {
+                  const csvData = `Roll Number,PRN,Student Name,Official Email,Phone Number,Parent Email,Parent Phone,Warnings Sent,Present Count,Absent Count,Late Count,Attendance Rate (%)\nP101,PRN101,Alexander Wright,alex@school.edu,+123456781,parent.alex@school.edu,+198765431,0,3,0,0,100\nP102,PRN102,Sophia Loren,sophia@school.edu,+123456782,,,0,2,1,0,67\nP103,PRN103,Marcus Aurelius,marcus@school.edu,+123456783,parent.marcus@school.edu,+198765433,1,0,3,0,0\nP104,PRN104,Diana Prince,diana@school.edu,+123456784,parent.diana@school.edu,+198765434,0,2,0,1,100\nP105,PRN105,Bruce Wayne,bruce@school.edu,+123456785,,,0,2,1,0,67`;
+                  this.successHandler(csvData);
+                }
+              }, 800);
+            }
+          }
+        }
+      };
+    }
+
+    // State management
+    let state = {
+      sheets: [],
+      currentSheet: '',
+      currentDate: '',
+      currentDateAndTime: '',
+      students: [], // Array of student items from Code.gs
+      localAttendance: {}, // Map of { rowNum: 'P'|'A'|'L' }
+      dates: [], // List of previous date columns
+      hasChanges: false
+    };
+
+    // Initialize Page
+    window.addEventListener('DOMContentLoaded', () => {
+      const today = new Date();
+      const localDateStr = today.getFullYear() + '-' + 
+                           String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                           String(today.getDate()).padStart(2, '0');
+      document.getElementById('date-picker').value = localDateStr;
+      state.currentDate = localDateStr;
+
+      let hours = today.getHours();
+      const minutes = today.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const timeStr = `${hours}:${String(minutes).padStart(2, '0')} ${ampm}`;
+      document.getElementById('time-picker').value = timeStr;
+      
+      state.currentDateAndTime = `${localDateStr} ${timeStr}`;
+
+      loadTimetableAndSheets();
+    });
+
+    function loadTimetableAndSheets() {
+      showLoader('Connecting to Sheet', 'Retrieving class roster and timetable schedules...');
+      
+      let timetableLoaded = false;
+      let sheetsLoaded = false;
+      let scheduleList = [];
+      let sheetList = [];
+      
+      function checkAllLoaded() {
+        if (timetableLoaded && sheetsLoaded) {
+          hideLoader();
+          
+          const selector = document.getElementById('sheet-selector');
+          selector.innerHTML = '';
+          
+          if (sheetList.length === 0) {
+            showError('Roster Setup Needed', 'No student rosters found. Re-run template setup.');
+            return;
+          }
+          
+          sheetList.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            selector.appendChild(option);
+          });
+          
+          const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const today = new Date();
+          const currentDay = daysOfWeek[today.getDay()];
+          
+          let selectedSheet = sheetList[0];
+          let selectedTime = document.getElementById('time-picker').value;
+          
+          for (let i = 0; i < scheduleList.length; i++) {
+            const item = scheduleList[i];
+            if (item.day.toLowerCase() === currentDay.toLowerCase()) {
+              const startPart = parseTimeString(item.startTime);
+              const endPart = parseTimeString(item.endTime);
+              
+              if (startPart && endPart) {
+                const nowHour = today.getHours();
+                const nowMinute = today.getMinutes();
+                const nowMinCount = nowHour * 60 + nowMinute;
+                const startMinCount = startPart.hours * 60 + startPart.minutes;
+                const endMinCount = endPart.hours * 60 + endPart.minutes;
+                
+                if (nowMinCount >= startMinCount && nowMinCount <= endMinCount) {
+                  if (sheetList.includes(item.classRef)) {
+                    selectedSheet = item.classRef;
+                    selectedTime = item.startTime;
+                    document.getElementById('time-picker').value = selectedTime;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          state.sheets = sheetList;
+          state.currentSheet = selectedSheet;
+          selector.value = selectedSheet;
+          
+          const dateVal = document.getElementById('date-picker').value;
+          state.currentDateAndTime = selectedTime ? `${dateVal} ${selectedTime}` : dateVal;
+          
+          loadStudentRoster(state.currentSheet);
+        }
+      }
+      
+      google.script.run
+        .withSuccessHandler((timetable) => {
+          scheduleList = timetable || [];
+          timetableLoaded = true;
+          checkAllLoaded();
+        })
+        .withFailureHandler(onApiFailure)
+        .getTimetable();
+        
+      google.script.run
+        .withSuccessHandler((sheets) => {
+          sheetList = sheets || [];
+          sheetsLoaded = true;
+          checkAllLoaded();
+        })
+        .withFailureHandler(onApiFailure)
+        .getSheetsList();
+    }
+
+    // API Wrapper: Load students for sheet
+    function loadStudentRoster(sheetName) {
+      showLoader('Loading Class Roster', `Reading rosters for ${sheetName}...`);
+      google.script.run
+        .withSuccessHandler(onStudentsSuccess)
+        .withFailureHandler(onApiFailure)
+        .getStudents(sheetName);
+    }
+
+    function onStudentsSuccess(response) {
+      state.students = response.students || [];
+      state.dates = response.dates || [];
+      state.currentSheet = response.sheetName;
+      state.localAttendance = {};
+      state.hasChanges = false;
+
+      // Map existing date's attendance if current date already exists, else default to 'P' (Present)
+      state.students.forEach(student => {
+        if (student.attendance && student.attendance[state.currentDateAndTime]) {
+          state.localAttendance[student.rowNum] = student.attendance[state.currentDateAndTime];
+        } else {
+          // Default status to Present 'P'
+          state.localAttendance[student.rowNum] = 'P';
+        }
+      });
+
+      // Render View
+      renderStudentGrid();
+      updateAnalytics();
+      updateWatchlist();
+      
+      // Re-render class charts and reset active tab
+      renderTrendChart();
+      renderWeekdayChart();
+      switchAnalyticsTab('class');
+      
+      updateSyncStatus(false, 'Roster successfully loaded.');
+      hideLoader();
+    }
+
+    // Handles API execution issues
+    function onApiFailure(error) {
+      hideLoader();
+      showError('Google Sheets API Error', error.message || 'An error occurred during communication with the spreadsheet. Please double check permissions.');
+    }
+
+    // Save Attendance data
+    function saveData() {
+      if (Object.keys(state.localAttendance).length === 0) return;
+
+      const saveBtn = document.getElementById('save-btn');
+      const saveBtnText = document.getElementById('save-btn-text');
+      const saveIcon = document.getElementById('save-icon');
+      
+      saveBtn.disabled = true;
+      saveBtnText.textContent = 'Saving to Sheet...';
+      
+      // Replace button icon with a spinner
+      saveIcon.outerHTML = '<div class="spinner" id="save-spinner"></div>';
+
+      updateSyncStatus(false, 'Saving updates back to Google Sheet...');
+
+      google.script.run
+        .withSuccessHandler(onSaveSuccess)
+        .withFailureHandler(onSaveFailure)
+        .saveAttendance(state.currentSheet, state.currentDateAndTime, state.localAttendance);
+    }
+
+    function onSaveSuccess(response) {
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.disabled = false;
+      
+      // Re-inject save icon
+      const spinner = document.getElementById('save-spinner');
+      if (spinner) {
+        spinner.outerHTML = `<svg id="save-icon" style="width: 1.1rem; height: 1.1rem; stroke: currentColor; fill: none;" viewBox="0 0 24 24" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                            </svg>`;
+      }
+      document.getElementById('save-btn-text').textContent = 'Submit Attendance';
+
+      state.hasChanges = false;
+      updateSyncStatus(true, `Attendance successfully recorded for ${response.date}!`);
+      
+      // Reload roster silently to grab the updated dataset
+      google.script.run
+        .withSuccessHandler((silentResponse) => {
+          state.students = silentResponse.students || [];
+          state.dates = silentResponse.dates || [];
+          updateWatchlist();
+        })
+        .getStudents(state.currentSheet);
+    }
+
+    function onSaveFailure(error) {
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.disabled = false;
+      
+      const spinner = document.getElementById('save-spinner');
+      if (spinner) {
+        spinner.outerHTML = `<svg id="save-icon" style="width: 1.1rem; height: 1.1rem; stroke: currentColor; fill: none;" viewBox="0 0 24 24" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                            </svg>`;
+      }
+      document.getElementById('save-btn-text').textContent = 'Submit Attendance';
+      
+      updateSyncStatus(false, 'Sync failed: ' + error.message, true);
+      showError('Sync Failure', 'Failed to write attendance back to spreadsheet: ' + error.message);
+    }
+
+    // Triggered when selected sheet (subject) changes
+    function onSheetChange() {
+      const selector = document.getElementById('sheet-selector');
+      state.currentSheet = selector.value;
+      loadStudentRoster(state.currentSheet);
+    }
+
+    // Triggered when selected session date changes
+    function onDateChange() {
+      const datePicker = document.getElementById('date-picker');
+      state.currentDate = datePicker.value;
+      const timePicker = document.getElementById('time-picker');
+      const timeVal = timePicker.value.trim();
+      state.currentDateAndTime = timeVal ? `${state.currentDate} ${timeVal}` : state.currentDate;
+
+      // Re-map attendance values based on the newly selected date/time
+      state.students.forEach(student => {
+        if (student.attendance && student.attendance[state.currentDateAndTime]) {
+          state.localAttendance[student.rowNum] = student.attendance[state.currentDateAndTime];
+        } else {
+          // If no record exists for this date, default to 'P'
+          state.localAttendance[student.rowNum] = 'P';
+        }
+      });
+
+      renderStudentGrid();
+      updateAnalytics();
+      
+      // Update charts
+      renderTrendChart();
+      renderWeekdayChart();
+      
+      updateSyncStatus(false, 'Local buffer updated for new date selection.');
+    }
+
+    // Triggered when selected session time changes
+    function onTimeChange() {
+      const datePicker = document.getElementById('date-picker');
+      state.currentDate = datePicker.value;
+      const timePicker = document.getElementById('time-picker');
+      const timeVal = timePicker.value.trim();
+      state.currentDateAndTime = timeVal ? `${state.currentDate} ${timeVal}` : state.currentDate;
+
+      // Re-map attendance values based on the newly selected date/time
+      state.students.forEach(student => {
+        if (student.attendance && student.attendance[state.currentDateAndTime]) {
+          state.localAttendance[student.rowNum] = student.attendance[state.currentDateAndTime];
+        } else {
+          // If no record exists for this date, default to 'P'
+          state.localAttendance[student.rowNum] = 'P';
+        }
+      });
+
+      renderStudentGrid();
+      updateAnalytics();
+      
+      // Update charts
+      renderTrendChart();
+      renderWeekdayChart();
+      
+      updateSyncStatus(false, 'Local buffer updated for new time selection.');
+    }
+
+    // Change status of a single student locally
+    function setStudentStatus(rowNum, status) {
+      state.localAttendance[rowNum] = status;
+      state.hasChanges = true;
+      
+      // Update specific toggles
+      const card = document.getElementById(`student-row-${rowNum}`);
+      if (card) {
+        card.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = card.querySelector(`.status-btn.${status === 'P' ? 'present' : status === 'A' ? 'absent' : 'late'}`);
+        if (activeBtn) activeBtn.classList.add('active');
+      }
+
+      // Dynamically update card highlights, badges, and warning button
+      updateCardState(rowNum);
+
+      updateAnalytics();
+      
+      // Re-render class charts immediately if active
+      const classTabBtn = document.getElementById('analytics-tab-class');
+      if (classTabBtn && classTabBtn.classList.contains('active')) {
+        renderTrendChart();
+        renderWeekdayChart();
+      }
+      
+      updateSyncStatus(false, 'Unsaved local changes...');
+    }
+
+    // Bulk update all visible students
+    function markAll(status) {
+      const visibleCards = document.querySelectorAll('.student-card');
+      if (visibleCards.length === 0) return;
+
+      visibleCards.forEach(card => {
+        const rowNum = card.dataset.rownum;
+        setStudentStatus(rowNum, status);
+      });
+    }
+
+    // Real-time search filter
+    function filterStudents() {
+      const query = document.getElementById('search-input').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.student-card');
+      
+      cards.forEach(card => {
+        const name = card.dataset.name;
+        const roll = card.dataset.roll;
+        
+        if (name.includes(query) || roll.includes(query)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    // Helper to calculate specific student's attendance stats (historical + local selected status)
+    function calculateStudentStats(student) {
+      let allDates = [...state.dates];
+      let attendanceWithLocal = {...student.attendance};
+      
+      const currentLocalStatus = state.localAttendance[student.rowNum];
+      if (currentLocalStatus) {
+        if (!allDates.includes(state.currentDateAndTime)) {
+          allDates.push(state.currentDateAndTime);
+        }
+        attendanceWithLocal[state.currentDateAndTime] = currentLocalStatus;
+      }
+
+    // Helper to parse AM/PM time strings into hours/minutes
+    function parseTimeString(timeStr) {
+      if (!timeStr) return null;
+      const match = timeStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+      if (!match) return null;
+      let hours = parseInt(match[1]);
+      const minutes = parseInt(match[2]);
+      const ampm = match[3].toUpperCase();
+      
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      
+      return { hours, minutes };
+    }
+      
+      let total = 0;
+      let attended = 0;
+      allDates.forEach(date => {
+        const status = attendanceWithLocal[date];
+        if (status) {
+          total++;
+          if (status === 'P' || status === 'L') {
+            attended++;
+          }
+        }
+      });
+      
+      const rate = total > 0 ? Math.round((attended / total) * 100) : 100;
+      
+      // Calculate consecutive absences from right to left (newest to oldest)
+      let consecutiveAbsences = 0;
+      for (let i = allDates.length - 1; i >= 0; i--) {
+        const date = allDates[i];
+        const status = attendanceWithLocal[date];
+        if (status === 'A') {
+          consecutiveAbsences++;
+        } else if (status === 'P' || status === 'L') {
+          break;
+        }
+      }
+      
+      return { rate, consecutiveAbsences, total };
+    }
+
+    // Dynamic UI updater for individual student card state (highlights, badges, warning button)
+    function updateCardState(rowNum) {
+      const student = state.students.find(s => s.rowNum === rowNum);
+      if (!student) return;
+      
+      const card = document.getElementById(`student-row-${rowNum}`);
+      if (!card) return;
+      
+      const { rate, consecutiveAbsences } = calculateStudentStats(student);
+      const isLowAttendance = rate < 50;
+      const isConsecutiveAbsent = consecutiveAbsences >= 3;
+      const shouldHighlight = isLowAttendance || isConsecutiveAbsent;
+      
+      // Apply highlight class
+      if (shouldHighlight) {
+        card.classList.add('warning-highlight');
+      } else {
+        card.classList.remove('warning-highlight');
+      }
+      
+      // Update badges
+      let rateBadgeClass = 'good';
+      if (rate < 50) rateBadgeClass = 'danger';
+      else if (rate < 75) rateBadgeClass = 'warning';
+      
+      const detailsDiv = card.querySelector('.student-details');
+      let badgesDiv = detailsDiv.querySelector('.badges-container');
+      if (!badgesDiv) {
+        badgesDiv = document.createElement('div');
+        badgesDiv.className = 'badges-container';
+        badgesDiv.style = "display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem;";
+        detailsDiv.appendChild(badgesDiv);
+      }
+      
+      let badgesHtml = `<span class="rate-badge ${rateBadgeClass}">Attendance: ${rate}%</span>`;
+      if (isConsecutiveAbsent) {
+        badgesHtml += `<span class="consecutive-badge">${consecutiveAbsences}x Absent</span>`;
+      }
+      badgesDiv.innerHTML = badgesHtml;
+      
+      // Update warning button
+      const rightCol = card.children[1];
+      let warnBtn = rightCol.querySelector('.btn-warn');
+      
+      if (shouldHighlight) {
+        if (!warnBtn) {
+          warnBtn = document.createElement('button');
+          warnBtn.className = 'btn-warn';
+          warnBtn.id = `warn-btn-${rowNum}`;
+          warnBtn.onclick = () => openEmailModal(rowNum, student.name, student.email, rate, consecutiveAbsences);
+          warnBtn.innerHTML = `
+            <svg style="width: 0.85rem; height: 0.85rem; fill: none; stroke: currentColor;" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span>Email Warning</span>
+          `;
+          if (!student.email) {
+            warnBtn.disabled = true;
+            warnBtn.title = "No email address available in spreadsheet";
+          }
+          rightCol.appendChild(warnBtn);
+        } else {
+          warnBtn.onclick = () => openEmailModal(rowNum, student.name, student.email, rate, consecutiveAbsences);
+        }
+      } else {
+        if (warnBtn) {
+          warnBtn.remove();
+        }
+      }
+    }
+
+    // Modal-specific temporary state
+    let emailModalState = {
+      rowNum: null,
+      name: '',
+      email: '',
+      rate: 0,
+      consecutive: 0
+    };
+
+    function openEmailModal(rowNum, name, email, rate, consecutive) {
+      const student = state.students.find(s => s.rowNum === rowNum);
+      const parentEmail = student ? (student.parentEmail || '') : '';
+      
+      emailModalState = { rowNum, name, email, rate, consecutive };
+      
+      document.getElementById('email-student-name').value = name;
+      document.getElementById('email-student-addr').value = email;
+      
+      const parentInput = document.getElementById('email-parent-addr');
+      parentInput.value = parentEmail;
+      
+      const ccCheckbox = document.getElementById('email-cc-parent');
+      ccCheckbox.checked = parentEmail !== '';
+      
+      document.getElementById('email-modal').classList.remove('hidden');
+    }
+
+    function closeEmailModal() {
+      document.getElementById('email-modal').classList.add('hidden');
+    }
+
+    function submitEmailWarning() {
+      const { rowNum, name, email, rate, consecutive } = emailModalState;
+      const parentEmail = document.getElementById('email-parent-addr').value.trim();
+      const ccParent = document.getElementById('email-cc-parent').checked;
+      
+      const modalBtn = document.getElementById('email-modal-send-btn');
+      const originalText = modalBtn.textContent;
+      modalBtn.disabled = true;
+      modalBtn.textContent = 'Sending...';
+      
+      const cardBtn = document.getElementById(`warn-btn-${rowNum}`);
+      let cardBtnText, cardOriginalHtml;
+      if (cardBtn) {
+        cardBtnText = cardBtn.querySelector('span');
+        cardOriginalHtml = cardBtn.innerHTML;
+        cardBtn.disabled = true;
+        if (cardBtnText) cardBtnText.textContent = 'Sending...';
+      }
+      
+      google.script.run
+        .withSuccessHandler(() => {
+          modalBtn.disabled = false;
+          modalBtn.textContent = originalText;
+          closeEmailModal();
+          
+          if (cardBtn) {
+            cardBtn.style.background = 'var(--color-present-bg)';
+            cardBtn.style.color = '#a7f3d0';
+            cardBtn.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            if (cardBtnText) cardBtnText.textContent = 'Sent!';
+            
+            setTimeout(() => {
+              cardBtn.innerHTML = cardOriginalHtml;
+              cardBtn.style.background = '';
+              cardBtn.style.color = '';
+              cardBtn.style.borderColor = '';
+              cardBtn.disabled = false;
+            }, 3000);
+          }
+          
+          // Update parentEmail and warningsSent in state so it persists in the local client session
+          const student = state.students.find(s => s.rowNum === rowNum);
+          if (student) {
+            student.parentEmail = parentEmail;
+            student.warningsSent = (student.warningsSent || 0) + 1;
+          }
+        })
+        .withFailureHandler((error) => {
+          modalBtn.disabled = false;
+          modalBtn.textContent = originalText;
+          if (cardBtn) {
+            cardBtn.innerHTML = cardOriginalHtml;
+            cardBtn.disabled = false;
+          }
+          showError('Email Delivery Failure', 'Failed to send warning email: ' + error.message);
+        })
+        .sendWarningEmail(name, email, rate, state.currentSheet, consecutive, parentEmail, ccParent, rowNum);
+    }
+
+    // Render student grid to DOM
+    function renderStudentGrid() {
+      const container = document.getElementById('student-list-container');
+      container.innerHTML = '';
+
+      if (state.students.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 3rem 0; color: var(--text-secondary);">No student records found in this sheet.</div>';
+        return;
+      }
+
+      state.students.forEach(student => {
+        const rowNum = student.rowNum;
+        const currentStatus = state.localAttendance[rowNum] || 'P';
+        
+        // Calculate stats
+        const { rate, consecutiveAbsences } = calculateStudentStats(student);
+        const isLowAttendance = rate < 50;
+        const isConsecutiveAbsent = consecutiveAbsences >= 3;
+        const shouldHighlight = isLowAttendance || isConsecutiveAbsent;
+        
+        // Initials for avatar
+        const initials = student.name
+          .split(' ')
+          .map(n => n[0])
+          .slice(0, 2)
+          .join('')
+          .toUpperCase() || '?';
+
+        const card = document.createElement('div');
+        card.className = `student-card ${shouldHighlight ? 'warning-highlight' : ''}`;
+        card.id = `student-row-${rowNum}`;
+        card.dataset.rownum = rowNum;
+        card.dataset.name = student.name.toLowerCase();
+        card.dataset.roll = student.rollNumber.toLowerCase();
+
+        let rateBadgeClass = 'good';
+        if (rate < 50) rateBadgeClass = 'danger';
+        else if (rate < 75) rateBadgeClass = 'warning';
+
+        let badgesHtml = `<span class="rate-badge ${rateBadgeClass}">Attendance: ${rate}%</span>`;
+        if (isConsecutiveAbsent) {
+          badgesHtml += `<span class="consecutive-badge">${consecutiveAbsences}x Absent</span>`;
+        }
+
+        let warnBtnHtml = '';
+        if (shouldHighlight) {
+          const emailDisabledAttr = student.email ? '' : 'disabled title="No email address available in spreadsheet"';
+          warnBtnHtml = `
+            <button class="btn-warn" id="warn-btn-${rowNum}" onclick="openEmailModal(${rowNum}, '${student.name.replace(/'/g, "\\'")}', '${student.email}', ${rate}, ${consecutiveAbsences})" ${emailDisabledAttr}>
+              <svg style="width: 0.85rem; height: 0.85rem; fill: none; stroke: currentColor;" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span>Email Warning</span>
+            </button>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="student-info" onclick="openStudentProfile(${rowNum})" style="cursor: pointer;">
+            <div class="student-avatar">${initials}</div>
+            <div class="student-details">
+              <h3>${student.name}</h3>
+              <p style="gap: 0.5rem; flex-wrap: wrap;">
+                <span>Roll No: <strong>${student.rollNumber}</strong></span>
+                ${student.prn ? `<span style="opacity: 0.85;">&bull; PRN: <strong>${student.prn}</strong></span>` : ''}
+                ${student.email ? `<span class="email">&bull; ${student.email}</span>` : ''}
+              </p>
+              <div class="badges-container" style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem;">
+                ${badgesHtml}
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.65rem; width: 100%; max-width: 300px;">
+            <div class="status-toggle" style="max-width: 100%;">
+              <button class="status-btn present ${currentStatus === 'P' ? 'active' : ''}" onclick="setStudentStatus(${rowNum}, 'P')">PRESENT</button>
+              <button class="status-btn absent ${currentStatus === 'A' ? 'active' : ''}" onclick="setStudentStatus(${rowNum}, 'A')">ABSENT</button>
+              <button class="status-btn late ${currentStatus === 'L' ? 'active' : ''}" onclick="setStudentStatus(${rowNum}, 'L')">LATE</button>
+            </div>
+            ${warnBtnHtml}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // Recalculates live stats
+    function updateAnalytics() {
+      const total = state.students.length;
+      if (total === 0) return;
+
+      let present = 0;
+      let absent = 0;
+      let late = 0;
+
+      state.students.forEach(student => {
+        const status = state.localAttendance[student.rowNum];
+        if (status === 'P') present++;
+        else if (status === 'A') absent++;
+        else if (status === 'L') late++;
+      });
+
+      // Present Rate formula: (Present + Late) / Total
+      const rate = Math.round(((present + late) / total) * 100) || 0;
+
+      document.getElementById('session-percent').textContent = `${rate}%`;
+      document.getElementById('session-progress').style.width = `${rate}%`;
+      
+      document.getElementById('count-present').textContent = present;
+      document.getElementById('count-absent').textContent = absent;
+      document.getElementById('count-late').textContent = late;
+      document.getElementById('count-total').textContent = total;
+    }
+
+    // Compiles watchlist of students below 75% attendance history
+    function updateWatchlist() {
+      const watchlistContainer = document.getElementById('watchlist');
+      watchlistContainer.innerHTML = '';
+
+      if (state.dates.length === 0 || state.students.length === 0) {
+        watchlistContainer.innerHTML = '<div class="empty-watchlist">Roster details are pending or dates not logged yet.</div>';
+        return;
+      }
+
+      const warningStudents = [];
+
+      state.students.forEach(student => {
+        let totalSessions = 0;
+        let sessionsAttended = 0;
+
+        // Loop through all historic date columns
+        state.dates.forEach(date => {
+          const status = student.attendance[date];
+          if (status) {
+            totalSessions++;
+            if (status === 'P' || status === 'L') {
+              sessionsAttended++;
+            }
+          }
+        });
+
+        // Add current selected date to local buffer stats calculation if not already saved
+        const currentSavedStatus = student.attendance[state.currentDate];
+        if (!currentSavedStatus) {
+          const currentLocalStatus = state.localAttendance[student.rowNum];
+          if (currentLocalStatus) {
+            totalSessions++;
+            if (currentLocalStatus === 'P' || currentLocalStatus === 'L') {
+              sessionsAttended++;
+            }
+          }
+        }
+
+        if (totalSessions > 0) {
+          const rate = Math.round((sessionsAttended / totalSessions) * 100);
+          if (rate < 75) {
+            warningStudents.push({
+              name: student.name,
+              roll: student.rollNumber,
+              rate: rate,
+              attended: sessionsAttended,
+              total: totalSessions
+            });
+          }
+        }
+      });
+
+      if (warningStudents.length === 0) {
+        watchlistContainer.innerHTML = '<div class="empty-watchlist" style="color: var(--color-present);">All students are above the 75% attendance threshold. Excellent!</div>';
+        return;
+      }
+
+      // Sort by rate ascending
+      warningStudents.sort((a, b) => a.rate - b.rate);
+
+      warningStudents.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'alert-card';
+        div.innerHTML = `
+          <div class="alert-card-info">
+            <h4>${item.name}</h4>
+            <p>Roll No: ${item.roll} &bull; Attended ${item.attended}/${item.total}</p>
+          </div>
+          <div class="alert-value">${item.rate}%</div>
+        `;
+        watchlistContainer.appendChild(div);
+      });
+    }
+
+    // Sync bar messaging helper
+    function updateSyncStatus(isSynced, message, isError = false) {
+      const syncStatus = document.getElementById('sync-status');
+      const textSpan = syncStatus.querySelector('span');
+      const icon = syncStatus.querySelector('svg');
+
+      textSpan.textContent = message;
+
+      if (isError) {
+        syncStatus.className = 'save-status-msg error';
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />`;
+      } else if (isSynced) {
+        syncStatus.className = 'save-status-msg success';
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+      } else {
+        syncStatus.className = 'save-status-msg';
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+      }
+    }
+
+    // Global Loader Display control
+    function showLoader(title, subtitle) {
+      document.getElementById('loader-title').textContent = title;
+      document.getElementById('loader-subtitle').textContent = subtitle;
+      document.getElementById('loader').classList.remove('hidden');
+    }
+
+    function hideLoader() {
+      document.getElementById('loader').classList.add('hidden');
+    }
+
+    // Error Modal display controls
+    function showError(title, message) {
+      document.getElementById('error-title').textContent = title;
+      document.getElementById('error-message').textContent = message;
+      document.getElementById('error-modal').classList.remove('hidden');
+    }
+
+    // Chart instances
+    let trendChartInstance = null;
+    let weekdayChartInstance = null;
+    let subjectsChartInstance = null;
+
+    // Profile modal temporary state
+    let profileModalState = {
+      rowNum: null,
+      name: '',
+      email: '',
+      parentEmail: '',
+      rate: 0,
+      consecutive: 0
+    };
+
+    function switchAnalyticsTab(tabName) {
+      document.getElementById('analytics-tab-class').classList.remove('active');
+      document.getElementById('analytics-tab-subjects').classList.remove('active');
+      document.getElementById('analytics-tab-honor').classList.remove('active');
+      
+      document.getElementById(`analytics-tab-${tabName}`).classList.add('active');
+      
+      document.getElementById('view-class-analytics').classList.add('hidden');
+      document.getElementById('view-subjects-analytics').classList.add('hidden');
+      document.getElementById('view-honor-analytics').classList.add('hidden');
+      
+      document.getElementById(`view-${tabName}-analytics`).classList.remove('hidden');
+      
+      if (tabName === 'class') {
+        renderTrendChart();
+        renderWeekdayChart();
+      } else if (tabName === 'subjects') {
+        showLoader('Loading Subject Summaries', 'Retrieving tab comparisons...');
+        google.script.run
+          .withSuccessHandler((summaries) => {
+            hideLoader();
+            renderSubjectsChart(summaries);
+          })
+          .withFailureHandler((error) => {
+            hideLoader();
+            showError('Retrieve Failure', error.message);
+          })
+          .getClassSummaries();
+      } else if (tabName === 'honor') {
+        renderHonorRoll();
+      }
+    }
+
+    function renderTrendChart() {
+      const canvas = document.getElementById('trend-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (trendChartInstance) {
+        trendChartInstance.destroy();
+      }
+      
+      let allDates = [...state.dates];
+      if (!allDates.includes(state.currentDateAndTime)) {
+        allDates.push(state.currentDateAndTime);
+      }
+      allDates.sort();
+      const recentDates = allDates.slice(-10);
+      
+      const rates = recentDates.map(date => {
+        let total = 0;
+        let presentOrLate = 0;
+        
+        state.students.forEach(student => {
+          let status = (date === state.currentDateAndTime) ? state.localAttendance[student.rowNum] : student.attendance[date];
+          if (status) {
+            total++;
+            if (status === 'P' || status === 'L') {
+              presentOrLate++;
+            }
+          }
+        });
+        
+        return total > 0 ? Math.round((presentOrLate / total) * 100) : 0;
+      });
+      
+      trendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: recentDates.map(d => d.substring(5)),
+          datasets: [{
+            label: 'Attendance %',
+            data: rates,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.05)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointBackgroundColor: '#6366f1',
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            title: {
+              display: true,
+              text: 'Present Rate Trend (Last 10 sessions)',
+              color: '#94a3b8',
+              font: { family: 'Outfit', size: 10, weight: '600' }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.02)' },
+              ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 8 } }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.02)' },
+              ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 8 }, stepSize: 25 }
+            }
+          }
+        }
+      });
+    }
+
+    function renderWeekdayChart() {
+      const canvas = document.getElementById('weekday-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (weekdayChartInstance) {
+        weekdayChartInstance.destroy();
+      }
+      
+      const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const weekdayRates = [0, 0, 0, 0, 0, 0, 0];
+      const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+      
+      let allDates = [...state.dates];
+      if (!allDates.includes(state.currentDateAndTime)) {
+        allDates.push(state.currentDateAndTime);
+      }
+      
+      allDates.forEach(date => {
+        const datePart = date.split(' ')[0];
+        const parts = datePart.split('-');
+        if (parts.length !== 3) return;
+        const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const dayOfWeek = dObj.getDay();
+        
+        let total = 0;
+        let presentOrLate = 0;
+        
+        state.students.forEach(student => {
+          let status = (date === state.currentDateAndTime) ? state.localAttendance[student.rowNum] : student.attendance[date];
+          if (status) {
+            total++;
+            if (status === 'P' || status === 'L') {
+              presentOrLate++;
+            }
+          }
+        });
+        
+        if (total > 0) {
+          weekdayRates[dayOfWeek] += (presentOrLate / total) * 100;
+          weekdayCounts[dayOfWeek]++;
+        }
+      });
+      
+      const finalRates = weekdayRates.map((val, idx) => {
+        return weekdayCounts[idx] > 0 ? Math.round(val / weekdayCounts[idx]) : null;
+      });
+      
+      const labels = [];
+      const data = [];
+      for (let i = 0; i < 7; i++) {
+        if (finalRates[i] !== null) {
+          labels.push(weekdayNames[i]);
+          data.push(finalRates[i]);
+        }
+      }
+      
+      if (data.length === 0) {
+        labels.push('Mon', 'Wed', 'Fri');
+        data.push(0, 0, 0);
+      }
+      
+      weekdayChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            borderColor: '#10b981',
+            borderWidth: 1.5,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            title: {
+              display: true,
+              text: 'Average Rate by Weekday',
+              color: '#94a3b8',
+              font: { family: 'Outfit', size: 10, weight: '600' }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 8 } }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.02)' },
+              ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 8 }, stepSize: 25 }
+            }
+          }
+        }
+      });
+    }
+
+    function renderSubjectsChart(summaries) {
+      const canvas = document.getElementById('subjects-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (subjectsChartInstance) {
+        subjectsChartInstance.destroy();
+      }
+      
+      subjectsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: summaries.map(s => s.className),
+          datasets: [{
+            data: summaries.map(s => s.averageAttendance),
+            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+            borderColor: '#6366f1',
+            borderWidth: 1.5,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.02)' },
+              ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 8 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 8 } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderHonorRoll() {
+      const honorContainer = document.getElementById('honor-roll-list');
+      honorContainer.innerHTML = '';
+      
+      const honorStudents = [];
+      state.students.forEach(student => {
+        const { rate } = calculateStudentStats(student);
+        if (rate >= 90) {
+          honorStudents.push({
+            name: student.name,
+            roll: student.rollNumber,
+            rate: rate
+          });
+        }
+      });
+      
+      if (honorStudents.length === 0) {
+        honorContainer.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 2rem 0;">No students above 90% rate yet.</div>';
+        return;
+      }
+      
+      honorStudents.sort((a, b) => b.rate - a.rate);
+      
+      honorStudents.forEach(item => {
+        const div = document.createElement('div');
+        div.style = "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 0.75rem;";
+        div.innerHTML = `
+          <div>
+            <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin: 0;">${item.name}</h4>
+            <span style="font-size: 0.65rem; color: var(--text-secondary);">Roll No: ${item.roll}</span>
+          </div>
+          <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-present);">${item.rate}%</span>
+        `;
+        honorContainer.appendChild(div);
+      });
+    }
+
+    function openStudentProfile(rowNum) {
+      const student = state.students.find(s => s.rowNum === rowNum);
+      if (!student) return;
+      
+      const { rate, consecutiveAbsences } = calculateStudentStats(student);
+      
+      profileModalState = {
+        rowNum: rowNum,
+        name: student.name,
+        email: student.email,
+        parentEmail: student.parentEmail || '',
+        rate: rate,
+        consecutive: consecutiveAbsences
+      };
+      
+      document.getElementById('profile-modal-title').textContent = student.name;
+      document.getElementById('profile-modal-roll').textContent = `Roll Number: ${student.rollNumber}`;
+      document.getElementById('profile-stat-rate').textContent = `${rate}%`;
+      
+      let absences = 0;
+      let allDates = [...state.dates];
+      if (!allDates.includes(state.currentDateAndTime)) {
+        allDates.push(state.currentDateAndTime);
+      }
+      
+      allDates.forEach(date => {
+        const status = (date === state.currentDateAndTime) ? state.localAttendance[rowNum] : student.attendance[date];
+        if (status === 'A') absences++;
+      });
+      
+      document.getElementById('profile-stat-absences').textContent = absences;
+      document.getElementById('profile-stat-warnings').textContent = student.warningsSent || 0;
+      
+      document.getElementById('profile-info-prn').textContent = student.prn || 'None';
+      document.getElementById('profile-info-phone').textContent = student.phone || 'None';
+      document.getElementById('profile-info-email').textContent = student.email || 'None';
+      document.getElementById('profile-info-parent-phone').textContent = student.parentPhone || 'None';
+      document.getElementById('profile-info-parent').textContent = student.parentEmail || 'None';
+      
+      const historyList = document.getElementById('profile-history-list');
+      historyList.innerHTML = '';
+      
+      const sortedDates = [...allDates].sort().reverse();
+      sortedDates.forEach(date => {
+        const status = (date === state.currentDateAndTime) ? state.localAttendance[rowNum] : student.attendance[date];
+        if (!status) return;
+        
+        let label = 'PRESENT';
+        let colorClass = 'var(--color-present)';
+        let bgClass = 'var(--color-present-bg)';
+        
+        if (status === 'A') {
+          label = 'ABSENT';
+          colorClass = 'var(--color-absent)';
+          bgClass = 'var(--color-absent-bg)';
+        } else if (status === 'L') {
+          label = 'LATE';
+          colorClass = 'var(--color-late)';
+          bgClass = 'var(--color-late-bg)';
+        }
+        
+        const row = document.createElement('div');
+        row.style = "display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.02);";
+        row.innerHTML = `
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">${date}${date === state.currentDateAndTime ? ' (Current)' : ''}</span>
+          <span style="font-size: 0.7rem; font-weight: 700; color: ${colorClass}; background: ${bgClass}; padding: 0.15rem 0.45rem; border-radius: 0.35rem;">${label}</span>
+        `;
+        historyList.appendChild(row);
+      });
+      
+      if (sortedDates.length === 0) {
+        historyList.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.75rem; padding: 1rem 0;">No attendance records found.</div>';
+      }
+      
+      const warnBtn = document.getElementById('profile-modal-warn-btn');
+      if (rate < 75 || consecutiveAbsences >= 3) {
+        warnBtn.style.display = 'inline-flex';
+        warnBtn.disabled = !student.email;
+      } else {
+        warnBtn.style.display = 'none';
+      }
+      
+      document.getElementById('profile-modal').classList.remove('hidden');
+    }
+
+    function closeStudentProfile() {
+      document.getElementById('profile-modal').classList.add('hidden');
+    }
+
+    function triggerWarningFromProfile() {
+      const { rowNum, name, email, rate, consecutive } = profileModalState;
+      closeStudentProfile();
+      openEmailModal(rowNum, name, email, rate, consecutive);
+    }
+
+    function triggerCsvExport() {
+      const exportBtn = document.getElementById('export-btn');
+      const exportSpan = exportBtn.querySelector('span');
+      const originalText = exportSpan.textContent;
+      
+      exportBtn.disabled = true;
+      exportSpan.textContent = 'Compiling...';
+      
+      google.script.run
+        .withSuccessHandler((csvContent) => {
+          exportBtn.disabled = false;
+          exportSpan.textContent = originalText;
+          
+          if (csvContent === 'No records found') {
+            showError('Export Error', 'No student records available to export.');
+            return;
+          }
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.setAttribute('href', url);
+          link.setAttribute('download', `${state.currentSheet.replace(/\s+/g, '_')}_Attendance_Report.csv`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          updateSyncStatus(true, 'Roster report successfully exported to CSV!');
+        })
+        .withFailureHandler((error) => {
+          exportBtn.disabled = false;
+          exportSpan.textContent = originalText;
+          showError('Export Failure', 'Failed to compile attendance report: ' + error.message);
+        })
+        .exportClassReportCsv(state.currentSheet);
+    }
+
+    function closeErrorModal() {
+      document.getElementById('error-modal').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
