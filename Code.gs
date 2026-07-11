@@ -244,8 +244,135 @@ function saveAttendance(sheetName, dateString, attendanceMap) {
 }
 
 /**
+ * ONE-TIME MIGRATION UTILITY
+ * Run this once from the Apps Script editor (select this function → click ▶ Run)
+ * to replace all broken "Sat Dec 30 1899..." column headers in every roster sheet
+ * with correct date+time strings (YYYY-MM-DD HH:MM AM/PM) reconstructed from
+ * the Timetable schedule, starting from 6 July 2026.
+ *
+ * Safe to run multiple times — it only touches headers that still contain "1899".
+ */
+function fixBrokenDateHeaders() {
+  try {
+    const ss   = SpreadsheetApp.getActiveSpreadsheet();
+    const tz   = Session.getScriptTimeZone();
+    // Lectures started from this date — adjust here if needed
+    const startDate = new Date(2026, 6, 6); // July 6, 2026 (month is 0-indexed)
+
+    // ── Build timetable schedule map: classRef → [{dayIndex, startTime}] ────
+    const timetableSheet = ss.getSheetByName('Timetable');
+    const scheduleMap = {};
+    const DAY_INDEX = {
+      sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+      thursday: 4, friday: 5, saturday: 6
+    };
+
+    if (timetableSheet && timetableSheet.getLastRow() > 1) {
+      const ttRows = timetableSheet
+        .getRange(2, 1, timetableSheet.getLastRow() - 1, 4)
+        .getDisplayValues();
+
+      ttRows.forEach(row => {
+        const day      = (row[0] || '').trim().toLowerCase();
+        const time     = (row[1] || '').trim();
+        const classRef = (row[3] || '').trim();
+        if (!day || !classRef || DAY_INDEX[day] === undefined) return;
+        if (!scheduleMap[classRef]) scheduleMap[classRef] = [];
+        scheduleMap[classRef].push({ dayIndex: DAY_INDEX[day], startTime: time });
+      });
+    }
+
+    const results = [];
+
+    ss.getSheets()
+      .filter(s => s.getName() !== 'Timetable')
+      .forEach(sheet => {
+        const sheetName = sheet.getName();
+        const lastCol   = sheet.getLastColumn();
+        if (lastCol < 1) return;
+
+        // Read raw values (Date objects for auto-parsed cells) + display strings
+        const rawHdrs  = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+        const dispHdrs = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+
+        // Identify broken columns: raw value is a Date OR display contains "1899"
+        const brokenColIndices = rawHdrs
+          .map((val, i) => {
+            const brokenRaw  = val instanceof Date;
+            const brokenDisp = (dispHdrs[i] || '').includes('1899');
+            return (brokenRaw || brokenDisp) ? i : -1;
+          })
+          .filter(i => i !== -1);
+
+        if (brokenColIndices.length === 0) {
+          results.push(`✅ ${sheetName}: No broken headers — skipped.`);
+          return;
+        }
+
+        // ── Generate ordered session dates for this class from the timetable ──
+        const schedule = scheduleMap[sheetName] || [];
+        const sessions = [];
+        const cursor   = new Date(startDate);
+        const MAX_DAYS = 365;
+
+        for (let d = 0; d < MAX_DAYS && sessions.length < brokenColIndices.length; d++) {
+          const dow     = cursor.getDay();
+          const dateStr = Utilities.formatDate(cursor, tz, 'yyyy-MM-dd');
+
+          schedule
+            .filter(s => s.dayIndex === dow)
+            .sort((a, b) => a.startTime.localeCompare(b.startTime))
+            .forEach(s => {
+              if (sessions.length < brokenColIndices.length) {
+                sessions.push(`${dateStr} ${s.startTime}`);
+              }
+            });
+
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        // Fallback: if no timetable match, assign weekly dates with no time
+        if (sessions.length === 0) {
+          const fb = new Date(startDate);
+          for (let i = 0; i < brokenColIndices.length; i++) {
+            sessions.push(Utilities.formatDate(fb, tz, 'yyyy-MM-dd'));
+            fb.setDate(fb.getDate() + 7);
+          }
+        }
+
+        // ── Replace broken headers with corrected date strings ──────────────
+        brokenColIndices.forEach((colIdx, i) => {
+          const newLabel = sessions[i] ||
+            Utilities.formatDate(
+              new Date(startDate.getTime() + i * 7 * 86400000), tz, 'yyyy-MM-dd'
+            );
+          const cell = sheet.getRange(1, colIdx + 1);
+          cell.setNumberFormat('@STRING@'); // Store as plain text
+          cell.setValue(newLabel);
+        });
+
+        results.push(
+          `🔧 ${sheetName}: Fixed ${brokenColIndices.length} header(s) → ` +
+          sessions.slice(0, brokenColIndices.length).join(' | ')
+        );
+      });
+
+    Logger.log('fixBrokenDateHeaders results:\n' + results.join('\n'));
+    SpreadsheetApp.getUi().alert(
+      '✅ Migration Complete',
+      results.join('\n'),
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    return results.join('\n');
+  } catch (e) {
+    throw new Error('fixBrokenDateHeaders failed: ' + e.message);
+  }
+}
+
+/**
  * Automatically creates a sample template if the sheet is empty or blank.
  */
+
 function checkAndCreateTemplate() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
