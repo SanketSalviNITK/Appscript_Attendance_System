@@ -555,30 +555,20 @@ function getTimetable() {
     const lastColumn = sheet.getLastColumn();
     if (lastRow < 2) return [];
     
-    const range = sheet.getRange(2, 1, lastRow - 1, lastColumn);
-    const values = range.getValues();
-    const tz = Session.getScriptTimeZone();
+    const range = sheet.getRange(2, 1, lastRow - 1, Math.max(lastColumn, 5));
     
-    /**
-     * Google Sheets stores Time-type cells as Date objects at Dec 30 1899.
-     * Use Utilities.formatDate to extract only the time portion as "hh:mm a".
-     */
-    function formatTimeCell(val) {
-      if (!val && val !== 0) return '';
-      if (val instanceof Date) {
-        // Format to 12-hour time with AM/PM, e.g. "10:30 AM"
-        return Utilities.formatDate(val, tz, 'hh:mm a').toUpperCase();
-      }
-      return val.toString().trim();
-    }
+    // Use getDisplayValues() instead of getValues() so that Time-type, Date-type,
+    // and any other auto-parsed cells are returned as their visible display strings
+    // (e.g. "10:30 AM") rather than as JavaScript Date objects (which produce "Sat Dec 30 1899...").
+    const displayValues = range.getDisplayValues();
     
-    return values
+    return displayValues
       .map(row => ({
-        day: row[0] ? row[0].toString().trim() : '',
-        startTime: formatTimeCell(row[1]),
-        endTime: formatTimeCell(row[2]),
-        classRef: row[3] ? row[3].toString().trim() : '',
-        classroom: row[4] ? row[4].toString().trim() : ''
+        day:       (row[0] || '').toString().trim(),
+        startTime: (row[1] || '').toString().trim(),
+        endTime:   (row[2] || '').toString().trim(),
+        classRef:  (row[3] || '').toString().trim(),
+        classroom: (row[4] || '').toString().trim()
       }))
       .filter(entry => entry.day && entry.classRef); // Skip empty rows
   } catch (e) {
