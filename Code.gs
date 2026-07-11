@@ -244,6 +244,72 @@ function saveAttendance(sheetName, dateString, attendanceMap) {
 }
 
 /**
+ * ONE-TIME MIGRATION UTILITY — Fix Timetable time cells
+ * Run from Apps Script editor: select fixTimetableCells → click ▶ Run
+ *
+ * Timetable Start/End Time cells are stored as Date-type values in Google Sheets.
+ * Even getDisplayValues() returns the full date string if the cell format is Date/Time.
+ * This function reads the raw Date objects, formats them to "10:30 AM" strings,
+ * then rewrites the cells as plain text (@STRING@) so they display correctly everywhere.
+ */
+function fixTimetableCells() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const tz = Session.getScriptTimeZone();
+    const sheet = ss.getSheetByName('Timetable');
+
+    if (!sheet) {
+      SpreadsheetApp.getUi().alert('Timetable sheet not found.');
+      return;
+    }
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      SpreadsheetApp.getUi().alert('Timetable has no data rows.');
+      return;
+    }
+
+    // Read raw values — Date-type cells come back as JS Date objects
+    const dataRange = sheet.getRange(2, 1, lastRow - 1, 5);
+    const raw = dataRange.getValues();
+
+    const cleaned = raw.map(row => {
+      // Col A: Day name — if stored as a Date, derive the day name from it
+      const day = row[0] instanceof Date
+        ? Utilities.formatDate(row[0], tz, 'EEEE') // e.g. "Monday"
+        : (row[0] || '').toString().trim();
+
+      // Col B: Start Time → "10:30 AM"
+      const startTime = row[1] instanceof Date
+        ? Utilities.formatDate(row[1], tz, 'hh:mm a').toUpperCase()
+        : (row[1] || '').toString().trim();
+
+      // Col C: End Time → "11:30 AM"
+      const endTime = row[2] instanceof Date
+        ? Utilities.formatDate(row[2], tz, 'hh:mm a').toUpperCase()
+        : (row[2] || '').toString().trim();
+
+      const classRef  = (row[3] || '').toString().trim();
+      const classroom = (row[4] || '').toString().trim();
+
+      return [day, startTime, endTime, classRef, classroom];
+    });
+
+    // Force plain text format before writing so Sheets won't re-parse as dates
+    dataRange.setNumberFormat('@STRING@');
+    dataRange.setValues(cleaned);
+
+    SpreadsheetApp.getUi().alert(
+      '✅ Timetable Fixed',
+      `Cleaned ${cleaned.length} row(s). Times are now stored as plain text.`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  } catch (e) {
+    throw new Error('fixTimetableCells failed: ' + e.message);
+  }
+}
+
+/**
  * ONE-TIME MIGRATION UTILITY
  * Run this once from the Apps Script editor (select this function → click ▶ Run)
  * to replace all broken "Sat Dec 30 1899..." column headers in every roster sheet
