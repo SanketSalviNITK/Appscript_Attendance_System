@@ -58,7 +58,16 @@ function getStudents(sheetName) {
     
     const range = sheet.getRange(1, 1, lastRow, lastColumn || 1);
     const values = range.getValues();
-    const headers = values[0].map(h => h.toString().trim());
+    // Apps Script auto-converts date-like strings to Date objects when reading back.
+    // Use getDisplayValues() for the header row to get what is actually shown in the cell.
+    const displayHeaders = sheet.getRange(1, 1, 1, lastColumn || 1).getDisplayValues()[0];
+    const headers = values[0].map((h, i) => {
+      if (h instanceof Date) {
+        // Fall back to the display value which is the plain text we stored
+        return displayHeaders[i] ? displayHeaders[i].toString().trim() : '';
+      }
+      return h.toString().trim();
+    });
     
     // Dynamically identify columns
     let rollColIdx = -1;
@@ -184,6 +193,10 @@ function saveAttendance(sheetName, dateString, attendanceMap) {
       throw new Error('Sheet not found: ' + sheetName);
     }
     
+    // IMPORTANT: Google Apps Script auto-converts date-like strings to Date objects.
+    // Force it back to a plain string immediately to avoid "Sat Dec 30 1899..." artifacts.
+    const dateLabel = String(dateString).trim();
+    
     const lastRow = sheet.getLastRow();
     const lastColumn = sheet.getLastColumn();
     
@@ -193,15 +206,22 @@ function saveAttendance(sheetName, dateString, attendanceMap) {
     
     // Fetch headers to check if date column already exists
     const headerRange = sheet.getRange(1, 1, 1, lastColumn || 1);
-    const headers = headerRange.getValues()[0].map(h => h.toString().trim());
+    const headers = headerRange.getValues()[0].map(h => {
+      // Headers that were stored as dates also need toString()
+      return h instanceof Date
+        ? Utilities.formatDate(h, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : h.toString().trim();
+    });
     
-    let dateColIdx = headers.indexOf(dateString);
+    let dateColIdx = headers.indexOf(dateLabel);
     let targetColNum = -1;
     
     if (dateColIdx === -1) {
-      // Date column doesn't exist. Add a new column at the end
+      // Date column doesn't exist. Add a new column at the end as PLAIN TEXT
       targetColNum = lastColumn + 1;
-      sheet.getRange(1, targetColNum).setValue(dateString);
+      const headerCell = sheet.getRange(1, targetColNum);
+      headerCell.setNumberFormat('@STRING@');  // Force plain text so Sheets won't parse it
+      headerCell.setValue(dateLabel);
     } else {
       // Date column exists. Update existing column
       targetColNum = dateColIdx + 1;
@@ -217,7 +237,7 @@ function saveAttendance(sheetName, dateString, attendanceMap) {
     // Write the values to the sheet
     sheet.getRange(2, targetColNum, valuesToWrite.length, 1).setValues(valuesToWrite);
     
-    return { success: true, date: dateString };
+    return { success: true, date: dateLabel };
   } catch (e) {
     throw new Error('Failed to save attendance: ' + e.message);
   }
