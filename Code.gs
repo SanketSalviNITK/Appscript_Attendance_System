@@ -255,6 +255,11 @@ function checkAndCreateTemplate() {
     if (!timetableSheet) {
       timetableSheet = ss.insertSheet('Timetable', 0);
       timetableSheet.getRange('A1:E1').setValues([['Day', 'Start Time', 'End Time', 'Subject/Class Tab Reference', 'Classroom']]);
+      
+      // Force Start Time (col B) and End Time (col C) to plain text so Sheets
+      // never auto-converts them to Time-type cells (which causes Dec 30 1899 display bug)
+      timetableSheet.getRange('B:C').setNumberFormat('@STRING@');
+      
       timetableSheet.getRange('A2:E4').setValues([
         ['Monday', '10:30 AM', '11:30 AM', 'DS-1 Panel H', 'Room 402'],
         ['Wednesday', '01:30 PM', '02:30 PM', 'DS-1 Panel H', 'Room 402'],
