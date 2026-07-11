@@ -552,16 +552,33 @@ function getTimetable() {
     
     const range = sheet.getRange(2, 1, lastRow - 1, lastColumn);
     const values = range.getValues();
+    const tz = Session.getScriptTimeZone();
     
-    return values.map(row => ({
-      day: row[0] ? row[0].toString().trim() : '',
-      startTime: row[1] ? row[1].toString().trim() : '',
-      endTime: row[2] ? row[2].toString().trim() : '',
-      classRef: row[3] ? row[3].toString().trim() : '',
-      classroom: row[4] ? row[4].toString().trim() : ''
-    }));
+    /**
+     * Google Sheets stores Time-type cells as Date objects at Dec 30 1899.
+     * Use Utilities.formatDate to extract only the time portion as "hh:mm a".
+     */
+    function formatTimeCell(val) {
+      if (!val && val !== 0) return '';
+      if (val instanceof Date) {
+        // Format to 12-hour time with AM/PM, e.g. "10:30 AM"
+        return Utilities.formatDate(val, tz, 'hh:mm a').toUpperCase();
+      }
+      return val.toString().trim();
+    }
+    
+    return values
+      .map(row => ({
+        day: row[0] ? row[0].toString().trim() : '',
+        startTime: formatTimeCell(row[1]),
+        endTime: formatTimeCell(row[2]),
+        classRef: row[3] ? row[3].toString().trim() : '',
+        classroom: row[4] ? row[4].toString().trim() : ''
+      }))
+      .filter(entry => entry.day && entry.classRef); // Skip empty rows
   } catch (e) {
     Logger.log('Failed to fetch timetable: ' + e.message);
     return [];
   }
 }
+
