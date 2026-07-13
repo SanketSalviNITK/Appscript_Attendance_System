@@ -4,6 +4,30 @@ A beautiful, modern, mobile-responsive **Google Apps Script** web application fo
 
 ---
 
+## 🗂️ Template — Download & Use
+
+> **Get started in under 10 minutes.** Everything you need is in the [`template/`](template/) folder.
+
+| File | Description |
+|:-----|:------------|
+| [`template/SETUP_GUIDE.md`](template/SETUP_GUIDE.md) | 📖 Full step-by-step setup guide |
+| [`template/Timetable_template.csv`](template/Timetable_template.csv) | 📅 Import into your `Timetable` sheet tab |
+| [`template/StudentRoster_template.csv`](template/StudentRoster_template.csv) | 👨‍🎓 Import into each class roster tab |
+| [`Code.gs`](Code.gs) | ⚙️ Apps Script backend — paste into your Apps Script editor |
+| [`Index.html`](Index.html) | 🖥️ Frontend UI — paste as an HTML file named `Index` |
+| [`appsscript.json`](appsscript.json) | 🔧 Apps Script manifest (for `clasp` CLI users) |
+
+### ⚡ Quick Steps
+1. Create a new Google Sheet → add a `Timetable` tab → import `Timetable_template.csv`
+2. Add a class tab (e.g. `SY CSE H DS I`) → import `StudentRoster_template.csv`
+3. Go to **Extensions → Apps Script** → paste `Code.gs` and `Index.html`
+4. **Deploy → New Deployment → Web App** → copy the URL → done! 🎉
+
+➡️ **[Read the full setup guide →](template/SETUP_GUIDE.md)**
+
+---
+
+
 ## ✨ Features
 
 ### Core Attendance
