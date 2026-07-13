@@ -790,7 +790,183 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.2);
     }
+
+    /* ── Mobile Responsiveness ─────────────────────────────────────────── */
+
+    /* Phones: ≤ 480px */
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem 0.75rem;
+      }
+
+      header {
+        padding: 1rem 1rem;
+        border-radius: 1rem;
+      }
+
+      .header-title h1 {
+        font-size: 1.25rem;
+      }
+
+      .header-title p {
+        font-size: 0.8rem;
+      }
+
+      /* Stack all header controls vertically and stretch full-width */
+      .header-controls {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+      }
+
+      .header-controls .control-group {
+        width: 100%;
+      }
+
+      .header-controls select,
+      .header-controls input[type="date"],
+      .header-controls input[type="text"] {
+        width: 100%;
+      }
+
+      /* Search stretches full width; remove min-width constraint */
+      .search-wrapper {
+        min-width: unset;
+        width: 100%;
+      }
+
+      /* Panel actions stack vertically */
+      .panel-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn-group {
+        width: 100%;
+      }
+
+      .btn-group button {
+        flex: 1;
+        justify-content: center;
+      }
+
+      /* Student card: keep stacked on very small screens */
+      .student-card {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      /* Status toggle stretches full width on phones */
+      .status-toggle {
+        max-width: 100%;
+        width: 100%;
+      }
+
+      /* Bigger tap targets for status buttons */
+      .status-btn {
+        padding: 0.6rem 0.5rem;
+        font-size: 0.8rem;
+      }
+
+      /* Student details — allow email to wrap */
+      .student-details p {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+
+      /* Save bar: stack vertically */
+      .save-bar {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+      }
+
+      .save-bar > div:last-child {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      .save-bar > div:last-child button {
+        flex: 1;
+        justify-content: center;
+      }
+
+      /* Analytics tabs: wrap */
+      #analytics-tabs {
+        flex-wrap: wrap;
+      }
+
+      /* Profile modal: collapse 3-col stats to 2-col */
+      #profile-modal .modal {
+        padding: 1.25rem;
+      }
+
+      #profile-modal [style*="grid-template-columns: repeat(3, 1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      /* Panel padding reduction */
+      .panel {
+        padding: 1rem;
+        border-radius: 1rem;
+      }
+
+      /* Reduce student avatar size */
+      .student-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+      }
+
+      /* Analytics chart height */
+      canvas {
+        max-height: 220px !important;
+      }
+    }
+
+    /* Tablets: 481px – 768px */
+    @media (min-width: 481px) and (max-width: 768px) {
+      body {
+        padding: 1.25rem 1rem;
+      }
+
+      .header-title h1 {
+        font-size: 1.5rem;
+      }
+
+      .search-wrapper {
+        min-width: 180px;
+      }
+
+      .save-bar {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .status-toggle {
+        max-width: 260px;
+      }
+
+      .panel {
+        padding: 1.25rem;
+      }
+    }
+
+    /* Ensure modals are scrollable and don't overflow on small screens */
+    @media (max-width: 600px) {
+      .modal {
+        width: 95%;
+        padding: 1.25rem;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .modal h2 {
+        font-size: 1.2rem;
+      }
+    }
   </style>
+
 </head>
 <body>
 
